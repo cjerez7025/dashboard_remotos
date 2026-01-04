@@ -35,141 +35,338 @@
         </div>
     </header>
 
+    <!-- Navigation Tabs -->
+    <nav class="dashboard-nav">
+        <div class="container">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchView('ejecutivo')" data-view="ejecutivo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard Ejecutivo</span>
+                </button>
+                <button class="nav-tab" onclick="switchView('operativo')" data-view="operativo">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Dashboard Operativo</span>
+                </button>
+                <button class="nav-tab" onclick="switchView('individual')" data-view="individual">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Dashboard Individual</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
     <!-- Main Content -->
     <main class="main-content">
         <div class="container">
             
-            <!-- KPI Cards -->
-            <div class="kpi-section">
-                <div class="kpi-card">
-                    <div class="kpi-icon blue">
-                        <i class="fas fa-users"></i>
+            <!-- ============================================ -->
+            <!-- VISTA 1: DASHBOARD EJECUTIVO (Para Gerencia) -->
+            <!-- ============================================ -->
+            <div id="view-ejecutivo" class="dashboard-view active">
+                
+                <!-- KPI Cards -->
+                <div class="kpi-section">
+                    <div class="kpi-card">
+                        <div class="kpi-icon blue">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="totalNAP_exec">-</h3>
+                            <p class="kpi-label">NAP Total</p>
+                        </div>
                     </div>
-                    <div class="kpi-content">
-                        <h3 class="kpi-value" id="totalEjecutivos">-</h3>
-                        <p class="kpi-label">Total Ejecutivos</p>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon green">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="irPromedio_exec">-</h3>
+                            <p class="kpi-label">IR Promedio</p>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon orange">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="napPorNegocio_exec">-</h3>
+                            <p class="kpi-label">NAP por Negocio</p>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon purple">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="totalEjecutivos_exec">-</h3>
+                            <p class="kpi-label">Ejecutivos Activos</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="kpi-card">
-                    <div class="kpi-icon green">
-                        <i class="fas fa-chart-bar"></i>
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    
+                    <!-- Evolución IR por Equipo -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-line"></i> Evolución IR por Equipo</h3>
+                        </div>
+                        <canvas id="evolucionIRChart"></canvas>
                     </div>
-                    <div class="kpi-content">
-                        <h3 class="kpi-value" id="totalNAP">-</h3>
-                        <p class="kpi-label">NAP Promedio</p>
-                    </div>
-                </div>
 
-                <div class="kpi-card">
-                    <div class="kpi-icon orange">
-                        <i class="fas fa-handshake"></i>
+                    <!-- Matriz NAP vs IR -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-project-diagram"></i> Matriz NAP vs IR</h3>
+                        </div>
+                        <canvas id="matrizNAPvsIRChart"></canvas>
                     </div>
-                    <div class="kpi-content">
-                        <h3 class="kpi-value" id="totalNegocios">-</h3>
-                        <p class="kpi-label">Total Negocios</p>
-                    </div>
-                </div>
 
-                <div class="kpi-card">
-                    <div class="kpi-icon purple">
-                        <i class="fas fa-building"></i>
+                    <!-- Top 10 por Índice de Salud -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-trophy"></i> Top 10 por Índice de Salud (NAP × IR)</h3>
+                        </div>
+                        <canvas id="topSaludChart"></canvas>
                     </div>
-                    <div class="kpi-content">
-                        <h3 class="kpi-value" id="totalClinicas">-</h3>
-                        <p class="kpi-label">Clínicas</p>
+
+                    <!-- IR por Clínica -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-hospital"></i> IR por Clínica</h3>
+                        </div>
+                        <canvas id="irPorClinicaChart"></canvas>
                     </div>
+
+                    <!-- Alertas Críticas -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-exclamation-triangle"></i> Ejecutivos que Requieren Atención</h3>
+                        </div>
+                        <div class="alerts-container" id="alertasEjecutivos">
+                            <p class="loading">Cargando alertas...</p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <!-- Charts Grid -->
-            <div class="charts-grid">
+            <!-- ============================================ -->
+            <!-- VISTA 2: DASHBOARD OPERATIVO (Para Líderes) -->
+            <!-- ============================================ -->
+            <div id="view-operativo" class="dashboard-view">
                 
-                <!-- Gráfico 1: Tendencia mensual de NAP -->
-                <div class="chart-card large">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-chart-line"></i> Tendencia NAP por Mes</h3>
-                        <select id="equipoFilterTendencia" class="filter-select" onchange="updateTendenciaMensual()">
+                <!-- Filtro de Equipo -->
+                <div class="view-filters">
+                    <div class="filter-group">
+                        <label for="equipoFilterOp">Seleccionar Equipo:</label>
+                        <select id="equipoFilterOp" class="filter-select-large" onchange="updateVistaOperativo()">
                             <option value="all">Todos los Equipos</option>
                         </select>
                     </div>
-                    <canvas id="tendenciaMensualChart"></canvas>
                 </div>
 
-                <!-- Gráfico 2: Top 10 Ejecutivos -->
-                <div class="chart-card medium">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-trophy"></i> Top 10 Ejecutivos por NAP</h3>
-                        <select id="mesFilterTop" class="filter-select" onchange="updateTopEjecutivos()">
-                            <option value="all">Todos los Meses</option>
-                        </select>
-                    </div>
-                    <canvas id="topEjecutivosChart"></canvas>
-                </div>
-
-                <!-- Gráfico 3: Comparación por Equipo -->
-                <div class="chart-card medium">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-users-cog"></i> Comparación por Equipo</h3>
-                    </div>
-                    <canvas id="comparacionEquiposChart"></canvas>
-                </div>
-
-                <!-- Gráfico 4: Distribución por Clínica -->
-                <div class="chart-card small">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-hospital"></i> Distribución por Clínica</h3>
-                    </div>
-                    <canvas id="distribucionClinicasChart"></canvas>
-                </div>
-
-                <!-- Gráfico 5: Negocios vs NAP -->
-                <div class="chart-card small">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-balance-scale"></i> Negocios vs NAP</h3>
-                        <select id="equipoFilterScatter" class="filter-select" onchange="updateNegociosVsNAP()">
-                            <option value="all">Todos los Equipos</option>
-                        </select>
-                    </div>
-                    <canvas id="negociosVsNAPChart"></canvas>
-                </div>
-
-                <!-- Tabla de datos -->
-                <div class="chart-card full">
-                    <div class="chart-header">
-                        <h3><i class="fas fa-table"></i> Resumen Detallado</h3>
-                        <div class="table-filters">
-                            <input type="text" id="searchTable" class="search-input" placeholder="Buscar ejecutivo...">
-                            <select id="clinicaFilterTable" class="filter-select" onchange="filterTable()">
-                                <option value="all">Todas las Clínicas</option>
-                            </select>
-                            <select id="equipoFilterTable" class="filter-select" onchange="filterTable()">
-                                <option value="all">Todos los Equipos</option>
-                            </select>
+                <!-- KPI Cards del Equipo -->
+                <div class="kpi-section">
+                    <div class="kpi-card">
+                        <div class="kpi-icon blue">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="napEquipo_op">-</h3>
+                            <p class="kpi-label">NAP del Equipo</p>
                         </div>
                     </div>
-                    <div class="table-container">
-                        <table id="dataTable">
-                            <thead>
-                                <tr>
-                                    <th onclick="sortTable(0)">Clínica <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(1)">Ejecutivo <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(2)">Equipo <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(3)">Mes <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(4)">NAP <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(5)">Negocios <i class="fas fa-sort"></i></th>
-                                    <th onclick="sortTable(6)">IR <i class="fas fa-sort"></i></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableBody">
-                                <tr>
-                                    <td colspan="7" class="loading">Cargando datos...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon green">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="irEquipo_op">-</h3>
+                            <p class="kpi-label">IR del Equipo</p>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon orange">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="ejecutivosEquipo_op">-</h3>
+                            <p class="kpi-label">Ejecutivos en Equipo</p>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon purple">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="rankingEquipo_op">-</h3>
+                            <p class="kpi-label">Ranking General</p>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    
+                    <!-- Desempeño Individual en el Equipo -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-users"></i> Desempeño Individual en el Equipo</h3>
+                        </div>
+                        <canvas id="desempenoEquipoChart"></canvas>
+                    </div>
+
+                    <!-- Evolución Mensual del Equipo -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-line"></i> Evolución Mensual</h3>
+                        </div>
+                        <canvas id="evolucionEquipoChart"></canvas>
+                    </div>
+
+                    <!-- Distribución de Desempeño -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-pie"></i> Distribución de Desempeño</h3>
+                        </div>
+                        <canvas id="distribucionEquipoChart"></canvas>
+                    </div>
+
+                    <!-- Tabla Detallada del Equipo -->
+                    <div class="chart-card full">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-table"></i> Detalle por Ejecutivo</h3>
+                        </div>
+                        <div class="table-container">
+                            <table id="tablaEquipo">
+                                <thead>
+                                    <tr>
+                                        <th>Ejecutivo</th>
+                                        <th>Clínica</th>
+                                        <th>NAP Total</th>
+                                        <th>IR Promedio</th>
+                                        <th>Negocios</th>
+                                        <th>NAP/Negocio</th>
+                                        <th>Índice Salud</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaEquipoBody">
+                                    <tr><td colspan="7" class="loading">Seleccione un equipo</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- VISTA 3: DASHBOARD INDIVIDUAL (Para Ejecutivos) -->
+            <!-- ============================================ -->
+            <div id="view-individual" class="dashboard-view">
+                
+                <!-- Selector de Ejecutivo -->
+                <div class="view-filters">
+                    <div class="filter-group">
+                        <label for="ejecutivoFilterInd">Seleccionar Ejecutivo:</label>
+                        <select id="ejecutivoFilterInd" class="filter-select-large" onchange="updateVistaIndividual()">
+                            <option value="">Seleccione un ejecutivo...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPI Cards Personales -->
+                <div class="kpi-section">
+                    <div class="kpi-card">
+                        <div class="kpi-icon blue">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="napPersonal_ind">-</h3>
+                            <p class="kpi-label">Mi NAP Total</p>
+                            <span class="kpi-compare" id="napCompare_ind"></span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon green">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="irPersonal_ind">-</h3>
+                            <p class="kpi-label">Mi IR Promedio</p>
+                            <span class="kpi-compare" id="irCompare_ind"></span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon orange">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="negociosPersonal_ind">-</h3>
+                            <p class="kpi-label">Mis Negocios</p>
+                            <span class="kpi-compare" id="negociosCompare_ind"></span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon purple">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <h3 class="kpi-value" id="rankingPersonal_ind">-</h3>
+                            <p class="kpi-label">Mi Ranking</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    
+                    <!-- Mi Evolución Mensual -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-line"></i> Mi Evolución Mensual</h3>
+                        </div>
+                        <canvas id="evolucionPersonalChart"></canvas>
+                    </div>
+
+                    <!-- Comparación con Promedio del Equipo -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-balance-scale"></i> Yo vs Promedio del Equipo</h3>
+                        </div>
+                        <canvas id="comparacionEquipoChart"></canvas>
+                    </div>
+
+                    <!-- Mi Desempeño por Mes -->
+                    <div class="chart-card medium">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-calendar-alt"></i> Desempeño por Mes</h3>
+                        </div>
+                        <canvas id="desempenoMensualChart"></canvas>
+                    </div>
+
+                    <!-- Mis Objetivos y Logros -->
+                    <div class="chart-card full">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-bullseye"></i> Mis Objetivos y Progreso</h3>
+                        </div>
+                        <div class="objetivos-container" id="objetivosPersonales">
+                            <p class="loading">Seleccione un ejecutivo</p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
         </div>
