@@ -654,3 +654,28 @@ canvas {
 .chart-card.small canvas {
     max-height: 300px;
 }
+
+/* Botón Volver para Drill Down */
+.btn-volver {
+    padding: 8px 16px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-volver:hover {
+    background: #1d4ed8;
+    transform: translateX(-2px);
+}
+
+.btn-volver i {
+    font-size: 12px;
+}

@@ -71,8 +71,8 @@
                             <i class="fas fa-dollar-sign"></i>
                         </div>
                         <div class="kpi-content">
-                            <h3 class="kpi-value" id="totalNAP_exec">-</h3>
-                            <p class="kpi-label">NAP Total</p>
+                            <h3 class="kpi-value" id="napPromedio_exec">-</h3>
+                            <p class="kpi-label">NAP Promedio</p>
                         </div>
                     </div>
 
@@ -88,11 +88,11 @@
 
                     <div class="kpi-card">
                         <div class="kpi-icon orange">
-                            <i class="fas fa-calculator"></i>
+                            <i class="fas fa-user-tie"></i>
                         </div>
                         <div class="kpi-content">
-                            <h3 class="kpi-value" id="napPorNegocio_exec">-</h3>
-                            <p class="kpi-label">NAP por Negocio</p>
+                            <h3 class="kpi-value" id="cantidadCoordinadores_exec">-</h3>
+                            <p class="kpi-label">Coordinadores</p>
                         </div>
                     </div>
 
@@ -111,19 +111,22 @@
                 <div class="charts-grid">
                     
                     <!-- Evolución IR por Equipo -->
-                    <div class="chart-card large">
+                    <div class="chart-card medium">
                         <div class="chart-header">
                             <h3><i class="fas fa-chart-line"></i> Evolución IR por Equipo</h3>
                         </div>
                         <canvas id="evolucionIRChart"></canvas>
                     </div>
 
-                    <!-- Matriz NAP vs IR -->
+                    <!-- NAP Promedio por Clínica -->
                     <div class="chart-card medium">
                         <div class="chart-header">
-                            <h3><i class="fas fa-project-diagram"></i> Matriz NAP vs IR</h3>
+                            <h3 id="napClinicaTitle"><i class="fas fa-hospital"></i> NAP Promedio por Clínica</h3>
+                            <button id="btnVolverClinica" class="btn-volver" onclick="volverNivelClinica()" style="display: none;">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </button>
                         </div>
-                        <canvas id="matrizNAPvsIRChart"></canvas>
+                        <canvas id="napPromedioClinicaChart"></canvas>
                     </div>
 
                     <!-- Top 10 por Índice de Salud -->
@@ -132,14 +135,6 @@
                             <h3><i class="fas fa-trophy"></i> Top 10 por Índice de Salud (NAP × IR)</h3>
                         </div>
                         <canvas id="topSaludChart"></canvas>
-                    </div>
-
-                    <!-- IR por Clínica -->
-                    <div class="chart-card medium">
-                        <div class="chart-header">
-                            <h3><i class="fas fa-hospital"></i> IR por Clínica</h3>
-                        </div>
-                        <canvas id="irPorClinicaChart"></canvas>
                     </div>
 
                     <!-- Alertas Críticas -->
@@ -204,11 +199,11 @@
 
                     <div class="kpi-card">
                         <div class="kpi-icon purple">
-                            <i class="fas fa-star"></i>
+                            <i class="fas fa-user-tie"></i>
                         </div>
                         <div class="kpi-content">
-                            <h3 class="kpi-value" id="rankingEquipo_op">-</h3>
-                            <p class="kpi-label">Ranking General</p>
+                            <h3 class="kpi-value" id="coordinadorEquipo_op">-</h3>
+                            <p class="kpi-label">Coordinador</p>
                         </div>
                     </div>
                 </div>
@@ -320,11 +315,11 @@
 
                     <div class="kpi-card">
                         <div class="kpi-icon purple">
-                            <i class="fas fa-trophy"></i>
+                            <i class="fas fa-user-tie"></i>
                         </div>
                         <div class="kpi-content">
-                            <h3 class="kpi-value" id="rankingPersonal_ind">-</h3>
-                            <p class="kpi-label">Mi Ranking</p>
+                            <h3 class="kpi-value" id="coordinadorPersonal_ind">-</h3>
+                            <p class="kpi-label">Mi Coordinador</p>
                         </div>
                     </div>
                 </div>

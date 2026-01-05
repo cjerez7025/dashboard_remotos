@@ -13,6 +13,13 @@ let allData = [];
 let charts = {};
 let currentView = 'ejecutivo';
 
+// Variables para drill down de NAP por Clínica
+let drillDownState = {
+    nivel: 1, // 1=Clínica, 2=Equipo, 3=Ejecutivo
+    clinicaSeleccionada: null,
+    equipoSeleccionado: null
+};
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
@@ -84,12 +91,13 @@ function processGoogleSheetData(json) {
             processedData.push({
                 clinica: cells[0]?.v || '',
                 ejecutivo: cells[1]?.v || '',
-                equipo: cells[2]?.v || '',
-                ir: parseFloat(cells[3]?.v) || 0,
-                nap: parseFloat(cells[4]?.v) || 0,
-                negocios: parseFloat(cells[5]?.v) || 0,
-                mes: cells[6]?.v || '',
-                ano: cells[7]?.v || 2025
+                coordinador: cells[2]?.v || '',
+                equipo: cells[3]?.v || '',
+                ir: parseFloat(cells[4]?.v) || 0,
+                nap: parseFloat(cells[5]?.v) || 0,
+                negocios: parseFloat(cells[6]?.v) || 0,
+                mes: cells[7]?.v || '',
+                ano: cells[8]?.v || 2025
             });
         }
     });
@@ -137,25 +145,24 @@ function populateFilters() {
 
 function updateVistaEjecutivo() {
     const totalNAP = allData.reduce((sum, d) => sum + d.nap, 0);
-    const totalNegocios = allData.reduce((sum, d) => sum + d.negocios, 0);
     const ejecutivosUnicos = [...new Set(allData.map(d => d.ejecutivo))];
+    const coordinadoresUnicos = [...new Set(allData.map(d => d.coordinador).filter(c => c && c !== ''))];
     
     const datosConIR = allData.filter(d => d.ir > 0);
     const irPromedio = datosConIR.length > 0 
         ? datosConIR.reduce((sum, d) => sum + d.ir, 0) / datosConIR.length 
         : 0;
     
-    const napPorNegocio = totalNegocios > 0 ? totalNAP / totalNegocios : 0;
+    const napPromedio = ejecutivosUnicos.length > 0 ? totalNAP / ejecutivosUnicos.length : 0;
     
-    document.getElementById('totalNAP_exec').textContent = totalNAP.toLocaleString('es-CL') + ' UF';
+    document.getElementById('napPromedio_exec').textContent = napPromedio.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' UF';
     document.getElementById('irPromedio_exec').textContent = irPromedio.toFixed(1) + '%';
-    document.getElementById('napPorNegocio_exec').textContent = napPorNegocio.toFixed(2) + ' UF';
+    document.getElementById('cantidadCoordinadores_exec').textContent = coordinadoresUnicos.length;
     document.getElementById('totalEjecutivos_exec').textContent = ejecutivosUnicos.length;
     
     createEvolucionIRChart();
-    createMatrizNAPvsIRChart();
+    createNAPPromedioClinicaChart();
     createTopSaludChart();
-    createIRPorClinicaChart();
     createAlertasEjecutivos();
 }
 
@@ -164,11 +171,33 @@ function createEvolucionIRChart() {
     if (!ctx) return;
     
     const ordenMeses = ['JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-    const equipos = [...new Set(allData.map(d => d.equipo))].sort();
+    const todosEquipos = [...new Set(allData.map(d => d.equipo))].sort();
     
-    const datasets = equipos.map((equipo, index) => {
-        const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+    // Filtrar solo equipos que tienen al menos un dato de IR
+    const equiposConDatos = todosEquipos.filter(equipo => {
+        return allData.some(d => d.equipo === equipo && d.ir > 0);
+    });
+    
+    // Si no hay equipos con datos, mostrar mensaje
+    if (equiposConDatos.length === 0) {
+        const container = ctx.parentElement;
+        const mensaje = document.createElement('p');
+        mensaje.textContent = 'No hay datos de IR disponibles para mostrar';
+        mensaje.style.textAlign = 'center';
+        mensaje.style.padding = '40px';
+        mensaje.style.color = 'var(--text-secondary)';
+        container.appendChild(mensaje);
+        ctx.style.display = 'none';
+        return;
+    }
+    
+    // Diferentes formas de puntos para distinguir equipos
+    const pointStyles = ['circle', 'rect', 'triangle', 'rectRot', 'star', 'cross', 'crossRot'];
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'];
+    
+    const datasets = equiposConDatos.map((equipo, index) => {
         const color = colors[index % colors.length];
+        const pointStyle = pointStyles[index % pointStyles.length];
         
         const dataEquipo = ordenMeses.map(mes => {
             const datosMes = allData.filter(d => d.equipo === equipo && d.mes === mes && d.ir > 0);
@@ -181,10 +210,17 @@ function createEvolucionIRChart() {
             label: equipo,
             data: dataEquipo,
             borderColor: color,
-            backgroundColor: color + '20',
+            backgroundColor: color,
             fill: false,
-            tension: 0.4,
-            pointRadius: 4
+            tension: 0.3,
+            borderWidth: 3,
+            pointStyle: pointStyle,
+            pointRadius: 6,
+            pointHoverRadius: 9,
+            pointBorderColor: color,
+            pointBackgroundColor: '#fff',
+            pointBorderWidth: 3,
+            pointHoverBorderWidth: 4
         };
     });
     
@@ -196,11 +232,44 @@ function createEvolucionIRChart() {
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
-                legend: { position: 'bottom' },
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    },
+                    onClick: (e, legendItem, legend) => {
+                        const index = legendItem.datasetIndex;
+                        const chart = legend.chart;
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                        chart.update();
+                    }
+                },
                 tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
                     callbacks: {
-                        label: (context) => context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%'
+                        label: (context) => {
+                            if (context.parsed.y === null) return null;
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                        }
                     }
                 }
             },
@@ -208,77 +277,318 @@ function createEvolucionIRChart() {
                 y: {
                     beginAtZero: true,
                     max: 100,
-                    title: { display: true, text: 'IR (%)' }
+                    title: { 
+                        display: true, 
+                        text: 'IR (%)',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
                 }
             }
         }
     });
 }
 
-function createMatrizNAPvsIRChart() {
-    const ctx = document.getElementById('matrizNAPvsIRChart');
+function createNAPPromedioClinicaChart() {
+    const ctx = document.getElementById('napPromedioClinicaChart');
     if (!ctx) return;
     
-    const ejecutivos = {};
-    allData.forEach(d => {
-        if (!ejecutivos[d.ejecutivo]) {
-            ejecutivos[d.ejecutivo] = { nap: 0, ir: [], count: 0 };
-        }
-        ejecutivos[d.ejecutivo].nap += d.nap;
-        if (d.ir > 0) ejecutivos[d.ejecutivo].ir.push(d.ir);
-        ejecutivos[d.ejecutivo].count++;
-    });
+    // Según el nivel actual, generar datos diferentes
+    let chartData;
+    let titulo;
     
-    const scatterData = Object.keys(ejecutivos).map(ejecutivo => {
-        const data = ejecutivos[ejecutivo];
-        const irPromedio = data.ir.length > 0 
-            ? data.ir.reduce((a, b) => a + b, 0) / data.ir.length 
-            : 0;
-        
-        return {
-            x: data.nap,
-            y: irPromedio,
-            label: ejecutivo
-        };
-    }).filter(d => d.y > 0);
+    if (drillDownState.nivel === 1) {
+        // NIVEL 1: Por Clínica
+        chartData = generarDatosNivel1_Clinicas();
+        titulo = '<i class="fas fa-hospital"></i> NAP Promedio por Clínica';
+        document.getElementById('btnVolverClinica').style.display = 'none';
+    } else if (drillDownState.nivel === 2) {
+        // NIVEL 2: Equipos de la clínica seleccionada
+        chartData = generarDatosNivel2_Equipos(drillDownState.clinicaSeleccionada);
+        titulo = '<i class="fas fa-users-cog"></i> Equipos de ' + drillDownState.clinicaSeleccionada;
+        document.getElementById('btnVolverClinica').style.display = 'flex';
+    } else if (drillDownState.nivel === 3) {
+        // NIVEL 3: Ejecutivos del equipo seleccionado
+        chartData = generarDatosNivel3_Ejecutivos(drillDownState.clinicaSeleccionada, drillDownState.equipoSeleccionado);
+        titulo = '<i class="fas fa-user"></i> Ejecutivos de ' + drillDownState.equipoSeleccionado;
+        document.getElementById('btnVolverClinica').style.display = 'flex';
+    }
     
-    if (charts.matrizNAPvsIR) charts.matrizNAPvsIR.destroy();
+    // Actualizar título
+    document.getElementById('napClinicaTitle').innerHTML = titulo;
     
-    charts.matrizNAPvsIR = new Chart(ctx, {
-        type: 'scatter',
+    if (!chartData || chartData.labels.length === 0) {
+        return;
+    }
+    
+    // Destruir chart anterior
+    if (charts.napPromedioClinica) {
+        charts.napPromedioClinica.destroy();
+    }
+    
+    // Crear nuevo chart
+    charts.napPromedioClinica = new Chart(ctx, {
+        type: 'bar',
         data: {
+            labels: chartData.labels,
             datasets: [{
-                label: 'Ejecutivos',
-                data: scatterData,
-                backgroundColor: 'rgba(37, 99, 235, 0.6)',
-                borderColor: 'rgba(37, 99, 235, 1)',
-                pointRadius: 6
+                label: 'NAP Promedio',
+                data: chartData.data,
+                backgroundColor: chartData.colors,
+                borderColor: chartData.colors.map(c => c.replace('0.8', '1')),
+                borderWidth: 1
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: true,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    handleDrillDownClick(index, chartData.items[index]);
+                }
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
                     callbacks: {
                         label: (context) => {
-                            const punto = scatterData[context.dataIndex];
-                            return punto.label + ': NAP ' + punto.x.toLocaleString('es-CL') + ' UF, IR ' + punto.y.toFixed(1) + '%';
+                            const item = chartData.items[context.dataIndex];
+                            return [
+                                'NAP Promedio: ' + item.napPromedio.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' UF',
+                                'Ejecutivos: ' + item.ejecutivos,
+                                '',
+                                '💡 Click para ver detalle'
+                            ];
                         }
                     }
                 }
             },
             scales: {
-                x: { title: { display: true, text: 'NAP Total (UF)' } },
-                y: { 
-                    title: { display: true, text: 'IR Promedio (%)' },
+                x: { 
                     beginAtZero: true,
-                    max: 100
+                    title: { 
+                        display: true, 
+                        text: 'NAP Promedio (UF)',
+                        font: { size: 13, weight: 'bold' }
+                    },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                },
+                y: {
+                    grid: { display: false }
                 }
             }
         }
     });
+}
+
+// NIVEL 1: Generar datos por Clínica
+function generarDatosNivel1_Clinicas() {
+    const ejecutivosData = {};
+    allData.forEach(d => {
+        if (!ejecutivosData[d.ejecutivo]) {
+            ejecutivosData[d.ejecutivo] = {
+                clinica: d.clinica,
+                napTotal: 0,
+                count: 0
+            };
+        }
+        ejecutivosData[d.ejecutivo].napTotal += d.nap;
+        ejecutivosData[d.ejecutivo].count++;
+    });
+    
+    Object.keys(ejecutivosData).forEach(ejecutivo => {
+        const data = ejecutivosData[ejecutivo];
+        data.napPromedio = data.count > 0 ? data.napTotal / data.count : 0;
+    });
+    
+    const clinicas = {};
+    Object.keys(ejecutivosData).forEach(ejecutivo => {
+        const data = ejecutivosData[ejecutivo];
+        const clinica = data.clinica;
+        
+        if (!clinicas[clinica]) {
+            clinicas[clinica] = { sumaPromedios: 0, cantidadEjecutivos: 0 };
+        }
+        
+        clinicas[clinica].sumaPromedios += data.napPromedio;
+        clinicas[clinica].cantidadEjecutivos++;
+    });
+    
+    const clinicasArray = Object.keys(clinicas).map(clinica => {
+        const napPromedioClinica = clinicas[clinica].cantidadEjecutivos > 0
+            ? clinicas[clinica].sumaPromedios / clinicas[clinica].cantidadEjecutivos
+            : 0;
+        
+        return {
+            nombre: clinica,
+            napPromedio: napPromedioClinica,
+            ejecutivos: clinicas[clinica].cantidadEjecutivos
+        };
+    }).sort((a, b) => b.napPromedio - a.napPromedio);
+    
+    const maxNAP = Math.max(...clinicasArray.map(c => c.napPromedio));
+    const colors = clinicasArray.map(c => {
+        const intensity = c.napPromedio / maxNAP;
+        const r = Math.round(37 + (16 - 37) * intensity);
+        const g = Math.round(99 + (185 - 99) * intensity);
+        const b = Math.round(235 + (129 - 235) * intensity);
+        return `rgba(${r}, ${g}, ${b}, 0.8)`;
+    });
+    
+    return {
+        labels: clinicasArray.map(c => c.nombre),
+        data: clinicasArray.map(c => c.napPromedio),
+        colors: colors,
+        items: clinicasArray
+    };
+}
+
+// NIVEL 2: Generar datos por Equipo (dentro de una clínica)
+function generarDatosNivel2_Equipos(clinica) {
+    const datosClinica = allData.filter(d => d.clinica === clinica);
+    
+    const ejecutivosData = {};
+    datosClinica.forEach(d => {
+        if (!ejecutivosData[d.ejecutivo]) {
+            ejecutivosData[d.ejecutivo] = {
+                equipo: d.equipo,
+                napTotal: 0,
+                count: 0
+            };
+        }
+        ejecutivosData[d.ejecutivo].napTotal += d.nap;
+        ejecutivosData[d.ejecutivo].count++;
+    });
+    
+    Object.keys(ejecutivosData).forEach(ejecutivo => {
+        const data = ejecutivosData[ejecutivo];
+        data.napPromedio = data.count > 0 ? data.napTotal / data.count : 0;
+    });
+    
+    const equipos = {};
+    Object.keys(ejecutivosData).forEach(ejecutivo => {
+        const data = ejecutivosData[ejecutivo];
+        const equipo = data.equipo;
+        
+        if (!equipos[equipo]) {
+            equipos[equipo] = { sumaPromedios: 0, cantidadEjecutivos: 0 };
+        }
+        
+        equipos[equipo].sumaPromedios += data.napPromedio;
+        equipos[equipo].cantidadEjecutivos++;
+    });
+    
+    const equiposArray = Object.keys(equipos).map(equipo => {
+        const napPromedioEquipo = equipos[equipo].cantidadEjecutivos > 0
+            ? equipos[equipo].sumaPromedios / equipos[equipo].cantidadEjecutivos
+            : 0;
+        
+        return {
+            nombre: equipo,
+            napPromedio: napPromedioEquipo,
+            ejecutivos: equipos[equipo].cantidadEjecutivos
+        };
+    }).sort((a, b) => b.napPromedio - a.napPromedio);
+    
+    const maxNAP = Math.max(...equiposArray.map(e => e.napPromedio));
+    const colors = equiposArray.map(e => {
+        const intensity = e.napPromedio / maxNAP;
+        return `rgba(37, 99, ${Math.round(235 - 106 * intensity)}, 0.8)`;
+    });
+    
+    return {
+        labels: equiposArray.map(e => e.nombre),
+        data: equiposArray.map(e => e.napPromedio),
+        colors: colors,
+        items: equiposArray
+    };
+}
+
+// NIVEL 3: Generar datos por Ejecutivo (dentro de un equipo y clínica)
+function generarDatosNivel3_Ejecutivos(clinica, equipo) {
+    const datosEquipo = allData.filter(d => d.clinica === clinica && d.equipo === equipo);
+    
+    const ejecutivosData = {};
+    datosEquipo.forEach(d => {
+        if (!ejecutivosData[d.ejecutivo]) {
+            ejecutivosData[d.ejecutivo] = { napTotal: 0, count: 0 };
+        }
+        ejecutivosData[d.ejecutivo].napTotal += d.nap;
+        ejecutivosData[d.ejecutivo].count++;
+    });
+    
+    const ejecutivosArray = Object.keys(ejecutivosData).map(ejecutivo => {
+        const data = ejecutivosData[ejecutivo];
+        const napPromedio = data.count > 0 ? data.napTotal / data.count : 0;
+        
+        return {
+            nombre: ejecutivo,
+            napPromedio: napPromedio,
+            ejecutivos: 1
+        };
+    }).sort((a, b) => b.napPromedio - a.napPromedio);
+    
+    const maxNAP = Math.max(...ejecutivosArray.map(e => e.napPromedio));
+    const colors = ejecutivosArray.map(e => {
+        const intensity = e.napPromedio / maxNAP;
+        return `rgba(${Math.round(139 - 123 * intensity)}, ${Math.round(92 + 93 * intensity)}, ${Math.round(246 - 117 * intensity)}, 0.8)`;
+    });
+    
+    return {
+        labels: ejecutivosArray.map(e => e.nombre),
+        data: ejecutivosArray.map(e => e.napPromedio),
+        colors: colors,
+        items: ejecutivosArray
+    };
+}
+
+// Manejar click en el gráfico
+function handleDrillDownClick(index, item) {
+    if (drillDownState.nivel === 1) {
+        // Click en clínica → ir a nivel 2 (equipos)
+        drillDownState.nivel = 2;
+        drillDownState.clinicaSeleccionada = item.nombre;
+    } else if (drillDownState.nivel === 2) {
+        // Click en equipo → ir a nivel 3 (ejecutivos)
+        drillDownState.nivel = 3;
+        drillDownState.equipoSeleccionado = item.nombre;
+    } else {
+        // Ya estamos en nivel 3 (ejecutivos), no hay más drill down
+        return;
+    }
+    
+    // Regenerar gráfico con nuevo nivel
+    createNAPPromedioClinicaChart();
+}
+
+// Función para volver al nivel anterior
+function volverNivelClinica() {
+    if (drillDownState.nivel === 3) {
+        // Volver de ejecutivos a equipos
+        drillDownState.nivel = 2;
+        drillDownState.equipoSeleccionado = null;
+    } else if (drillDownState.nivel === 2) {
+        // Volver de equipos a clínicas
+        drillDownState.nivel = 1;
+        drillDownState.clinicaSeleccionada = null;
+    }
+    
+    // Regenerar gráfico
+    createNAPPromedioClinicaChart();
 }
 
 function createTopSaludChart() {
@@ -338,69 +648,6 @@ function createTopSaludChart() {
             },
             scales: {
                 x: { beginAtZero: true }
-            }
-        }
-    });
-}
-
-function createIRPorClinicaChart() {
-    const ctx = document.getElementById('irPorClinicaChart');
-    if (!ctx) return;
-    
-    const clinicas = {};
-    allData.forEach(d => {
-        if (!clinicas[d.clinica]) {
-            clinicas[d.clinica] = { ir: [] };
-        }
-        if (d.ir > 0) clinicas[d.clinica].ir.push(d.ir);
-    });
-    
-    const labels = Object.keys(clinicas).sort();
-    const data = labels.map(clinica => {
-        const irs = clinicas[clinica].ir;
-        return irs.length > 0 ? irs.reduce((a, b) => a + b, 0) / irs.length : 0;
-    });
-    
-    if (charts.irPorClinica) charts.irPorClinica.destroy();
-    
-    charts.irPorClinica = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'IR Promedio',
-                data: data,
-                backgroundColor: data.map(ir => 
-                    ir >= 95 ? 'rgba(34, 197, 94, 0.8)' :      // Verde oscuro R1
-                    ir >= 90 ? 'rgba(132, 204, 22, 0.8)' :     // Verde claro R2
-                    ir >= 80 ? 'rgba(251, 191, 36, 0.8)' :     // Amarillo R3
-                    'rgba(239, 68, 68, 0.8)'                   // Rojo R4
-                )
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        afterLabel: (context) => {
-                            const ir = context.parsed.y;
-                            if (ir >= 95) return 'Persistencia R1 (Excelente)';
-                            if (ir >= 90) return 'Persistencia R2 (Bueno)';
-                            if (ir >= 80) return 'Persistencia R3 (Mejorable)';
-                            return 'Persistencia R4 (Crítico)';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    max: 100,
-                    title: { display: true, text: 'IR (%)' }
-                }
             }
         }
     });
@@ -481,6 +728,7 @@ function updateVistaOperativo() {
     
     if (equipoSeleccionado === 'all') {
         document.getElementById('tablaEquipoBody').innerHTML = '<tr><td colspan="7" class="loading">Seleccione un equipo específico</td></tr>';
+        document.getElementById('coordinadorEquipo_op').textContent = '-';
         return;
     }
     
@@ -492,10 +740,13 @@ function updateVistaOperativo() {
         : 0;
     const ejecutivosEnEquipo = [...new Set(datosEquipo.map(d => d.ejecutivo))].length;
     
+    // Obtener coordinador del equipo
+    const coordinadorEquipo = datosEquipo.length > 0 ? datosEquipo[0].coordinador : '-';
+    
     document.getElementById('napEquipo_op').textContent = napEquipo.toLocaleString('es-CL') + ' UF';
     document.getElementById('irEquipo_op').textContent = irEquipo.toFixed(1) + '%';
     document.getElementById('ejecutivosEquipo_op').textContent = ejecutivosEnEquipo;
-    document.getElementById('rankingEquipo_op').textContent = 'Top 3';
+    document.getElementById('coordinadorEquipo_op').textContent = coordinadorEquipo || 'Sin asignar';
     
     // Crear gráficos
     createDesempenoEquipoChart(datosEquipo);
@@ -732,6 +983,7 @@ function updateVistaIndividual() {
     
     if (!ejecutivoSeleccionado) {
         document.getElementById('objetivosPersonales').innerHTML = '<p class="loading">Seleccione un ejecutivo</p>';
+        document.getElementById('coordinadorPersonal_ind').textContent = '-';
         return;
     }
     
@@ -743,6 +995,9 @@ function updateVistaIndividual() {
         : 0;
     const negociosPersonal = datosEjecutivo.reduce((sum, d) => sum + d.negocios, 0);
     
+    // Obtener coordinador personal
+    const coordinadorPersonal = datosEjecutivo.length > 0 ? datosEjecutivo[0].coordinador : '-';
+    
     const napPromedioGeneral = allData.reduce((sum, d) => sum + d.nap, 0) / [...new Set(allData.map(d => d.ejecutivo))].length;
     const datosGeneralConIR = allData.filter(d => d.ir > 0);
     const irPromedioGeneral = datosGeneralConIR.length > 0 
@@ -752,7 +1007,7 @@ function updateVistaIndividual() {
     document.getElementById('napPersonal_ind').textContent = napPersonal.toLocaleString('es-CL') + ' UF';
     document.getElementById('irPersonal_ind').textContent = irPersonal.toFixed(1) + '%';
     document.getElementById('negociosPersonal_ind').textContent = negociosPersonal;
-    document.getElementById('rankingPersonal_ind').textContent = '#5';
+    document.getElementById('coordinadorPersonal_ind').textContent = coordinadorPersonal || 'Sin asignar';
     
     const napDiff = ((napPersonal - napPromedioGeneral) / napPromedioGeneral * 100);
     const irDiff = irPersonal - irPromedioGeneral;
